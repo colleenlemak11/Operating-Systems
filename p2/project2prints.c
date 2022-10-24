@@ -126,7 +126,7 @@ int setup(char inputBuffer[], char *args[], int *background)
 				
 			case '\n':
 				inputBuffer[i] = '\0';
-				// printf("CMD2: %s\n", args[args_idx]);
+				printf("CMD2: %s\n", args[args_idx]);
 				if (args[args_idx] != NULL) {
 					args_idx++;
 					args[args_idx] = NULL;

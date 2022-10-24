@@ -3,6 +3,7 @@
  * Operating Systems
  * Project 4
  * 18 October 2022
+ * To run: gcc -pthread -o thread project4.c, ./thread
 */
 
 #include <stdio.h>
@@ -20,13 +21,13 @@ typedef struct sortParams
     int start;
     int mid;
     int end;
-} sp;
+};
 
 typedef struct insertParams
 {
     int start;
     int end;
-} ip;
+};
 
 // Function prototypes
 void *sorter(void *params);

@@ -1,0 +1,8 @@
+add_after(B, new) {
+	1--after->next->prev = new;
+	3--new->next = after->next;
+	4--new->prev = after;
+	5--after->next = new;
+	2--old->prev->next = old->next;
+	6 --old->next->prev = old->prev;
+}
