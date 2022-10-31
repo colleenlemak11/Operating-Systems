@@ -3,6 +3,8 @@
  * Operating Systems Sect2
  * Dr. Y. Zhang
  * 2 November 2022
+ * To use: gcc -pthread -o thread buffer.c
+ * Execution: ./thread 1 2 2
  */
 
 #include "buffer.h"
@@ -15,98 +17,71 @@
 
 // initialize buffer, mutex, semaphores
 buffer_item buffer[BUFFER_SIZE];
-pthread_mutex_t lock;
-int nextin = 0, nextout = 0, insertPointer = 0, removePointer = 0;
 sem_t empty, occupied;
+pthread_mutex_t mutex;
+pthread_t tid;
+int counter;
 
 void *producer(void *param);
 void *consumer(void *param);
 
 int insert_item(buffer_item item)
-{
-	// decrement num empty slots in buffer
-	sem_wait(&empty);
-
-	// lock during insert to protect buffer
-	pthread_mutex_lock(&lock);
-	
+{	
 	// circular buffer redirects insert index
-	if(++nextin >= BUFFER_SIZE) {
-		nextin = 0;
-		buffer[nextin] = item;
+	if(counter >= BUFFER_SIZE) {
+		counter = 0;
+		buffer[counter] = item;
+		counter++;
 	}
 	else {
-		buffer[nextin] = item;
-		nextin++;
-		printf("buffer[nextin]:%d", buffer[nextin]);
+		buffer[counter] = item;
+		counter++;
 	}
-
-	// release lock and update occupied spots
-	pthread_mutex_unlock(&lock);
-	sem_post(&occupied);
-
 	return 0;
 }
 
 int remove_item(buffer_item *item)
 {
-	/* Acquire Full Semaphore */
-	sem_wait(&occupied);
-	 
-	// lock during insert to protect buffer
-	pthread_mutex_lock(&lock);
-	
-	if(++nextout >= BUFFER_SIZE) {
-		nextout = 0;
+	// Remove an item if buffer is not empty
+	if(counter > 0) {
+		*item = buffer[(counter - 1)];
+		counter--;
 	}
-	while(nextout > 0) {
-		buffer[nextout] = buffer[nextout - 1];
-		nextout--;
-		printf("buffer[nextout]:%d", buffer[nextout]);
+	else {
+		return -1;
 	}
-	
-	// release lock and update empty spots
-	pthread_mutex_unlock(&lock);
-	sem_post(&empty);
-	
 	return 0;
+}
+
+void initData() {
+	pthread_mutex_init(&mutex, NULL);
+	sem_init(&occupied, 0, 0);
+	sem_init(&empty, 0, BUFFER_SIZE);
+	counter = 0;
 }
 
 int main(int argc, char *argv[])
 {
-	printf("we're in main!");
-	int sleepTime, producerThreads, consumerThreads;
-	int i, j;
-	pthread_t producer[producerThreads];
-	pthread_t consumer[consumerThreads];
-
-	sem_init(&empty, 0, BUFFER_SIZE);
-	sem_init(&occupied, 0, 0);
-	pthread_join(&producer, NULL);
-	pthread_join(&consumer, NULL);
-
 	// check valid entry formatting
-	if(argc != 4)
-	{
+	if(argc != 4) {
 		fprintf(stderr, "Useage: <sleep time> <producer threads> <consumer threads>\n");
 		return -1;
 	}
 
 	// get cmd line arguments
-	sleepTime = atoi(argv[1]);
-	printf("Sleep time:", sleepTime);
-	producerThreads = atoi(argv[2]);
-	printf("Producer threads:", producerThreads);
-	consumerThreads = atoi(argv[3]);
-	printf("Consumer threads:", consumerThreads);
+	int sleepTime = atoi(argv[1]);
+	int producerThreads = atoi(argv[2]);
+	int consumerThreads = atoi(argv[3]);
+
+	// initialize data before use
+	initData();
 
 	// create producer and consumer threads
 	for(int i = 0; i < producerThreads; i++) {
-		pthread_create(&producer[i], NULL, producer, NULL);
+		pthread_create(&tid, NULL, producer, NULL);
 	}
-
 	for(int j = 0; j < consumerThreads; j++) {
-		pthread_create(&consumer[j], NULL, consumer, NULL);
+		pthread_create(&tid, NULL, consumer, NULL);
 	}
 
 	// sleep then exit program
@@ -118,41 +93,52 @@ int main(int argc, char *argv[])
 
 void *producer(void *param)
 {
-	buffer_item item = -1;
-	int upper = 10, lower = 0, sleepTime = 2;
+	buffer_item item;
+	int sleepTime = 2;
 
-	while(TRUE)
-	{
+	// producer inserts items into buffer -> producer
+	while(TRUE) {
 		sleep(sleepTime);
+		item = rand() % 100; // insert rand item
+
+		// decrement empty and lock thread mutex
 		sem_wait(&empty);
-		item = (rand() % (upper - lower + 1)) + lower;
-		if(insert_item(&item)) {
-			fprintf(stderr, "report error condition, Producer.");
+		pthread_mutex_lock(&mutex);
+
+		if(insert_item(item)) {
+			fprintf(stderr, "report error condition, Producer.\n");
 		}
 		else {
 			printf("Producer produced %d\n", item);
 		}
+
+		// increment occupied and unlock mutex
+		pthread_mutex_unlock(&mutex);
 		sem_post(&occupied);
 	}
 }
 
 void *consumer(void *param)
 {
-	 buffer_item item = -1;
-	 int sleepTime = 2;
-	 
-	while(TRUE)
-	{
+	buffer_item item;
+	int sleepTime = 2;
+	
+	// consumer removes items from buffer -> consumer
+	while(TRUE) {
 		sleep(sleepTime);
+		// decrement occupied and lock thread
 		sem_wait(&occupied);
+		pthread_mutex_lock(&mutex);
+
 		if(remove_item(&item)) {
-			fprintf(stderr, "report error condition, Consumer.");
+			fprintf(stderr, "report error condition, Consumer.\n");
 		}
 		else {
 			printf("Consumer consumed %d\n", item);
 		}
 
-		printf("Removed item:%d", item);
+		// increment empty spots and unlock mutex
+		pthread_mutex_unlock(&mutex);
 		sem_post(&empty);
 	}
 }
