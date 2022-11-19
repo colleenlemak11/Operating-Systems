@@ -1,4 +1,4 @@
-# Welcome to my CPSC 346 Operating Systems GitHub repo!
+# Welcome to MyCPSC346: Operating Systems!
 ## About
 - Language: C
 
