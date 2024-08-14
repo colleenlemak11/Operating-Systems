@@ -1,4 +1,5 @@
-# Welcome to MyCPSC346: Operating Systems!
+# Welcome to Operating Systems!
+
 ## About
 - Language: C
 
